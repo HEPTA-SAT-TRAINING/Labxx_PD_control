@@ -1,0 +1,11 @@
+BUILD
+.mbed
+compile_commands.json
+.clangd
+.cache
+mbed
+HEPTA_EPS/HeptaBattery/PowerControl
+HEPTA_EPS/HeptaBattery
+HEPTA_SENSOR/Hepta9axis
+HEPTA_SENSOR/HeptaCamera_GPS
+HEPTA_SENSOR/HeptaTemp
