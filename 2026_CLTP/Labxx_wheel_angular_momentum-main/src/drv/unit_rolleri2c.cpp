@@ -93,11 +93,83 @@ bool UnitRollerI2C::begin(TwoWire *wire, uint8_t addr, uint32_t speed)
     delay(10);
     _wire->beginTransmission(_addr);
     uint8_t error = _wire->endTransmission();
-    if (error == 0) {
-        return true;
-    } else {
-        return false;
-    }
+    _connected = (error == 0);
+    return _connected;
+}
+
+bool UnitRollerI2C::begin(TwoWire *wire, uint8_t sdaPin, uint8_t sclPin,
+                          uint8_t addr, uint32_t speed,
+                          unsigned long timeoutMs,
+                          unsigned long retryIntervalMs)
+{
+    _wire = wire;
+    _addr = addr;
+    _speed = speed;
+    _wire->setSDA(sdaPin);
+    _wire->setSCL(sclPin);
+    _wire->begin();
+    _wire->setClock(_speed);
+    delay(10);
+    return connect(timeoutMs, retryIntervalMs);
+}
+
+bool UnitRollerI2C::connect(unsigned long timeoutMs,
+                            unsigned long retryIntervalMs)
+{
+    const unsigned long startedAt = millis();
+    do {
+        _wire->beginTransmission(_addr);
+        _connected = (_wire->endTransmission() == 0);
+        if (_connected) {
+            configure();
+            return true;
+        }
+        delay(retryIntervalMs);
+    } while (millis() - startedAt < timeoutMs);
+
+    return false;
+}
+
+void UnitRollerI2C::configure(int32_t maxCurrent)
+{
+    setOutput(0);
+    setMode(ROLLER_MODE_SPEED);
+    setSpeedRpm(0);
+    setSpeedMaxCurrent(maxCurrent);
+}
+
+void UnitRollerI2C::start(int32_t speedRpm, int32_t maxCurrent)
+{
+    setMode(ROLLER_MODE_SPEED);
+    setSpeedMaxCurrent(maxCurrent);
+    setSpeedRpm(speedRpm);
+    setOutput(1);
+}
+
+void UnitRollerI2C::stop(void)
+{
+    setSpeedRpm(0);
+    setOutput(0);
+}
+
+void UnitRollerI2C::setSpeedRpm(int32_t speedRpm)
+{
+    setSpeed(speedRpm * SPEED_REGISTER_SCALE);
+}
+
+int32_t UnitRollerI2C::getSpeedRpm(void)
+{
+    return getSpeed() / SPEED_REGISTER_SCALE;
+}
+
+int32_t UnitRollerI2C::getSpeedReadbackRpm(void)
+{
+    return getSpeedReadback() / SPEED_REGISTER_SCALE;
+}
+
+bool UnitRollerI2C::isConnected(void) const
+{
+    return _connected;
 }
 
 void UnitRollerI2C::setMode(roller_mode_t mode)
@@ -491,7 +563,7 @@ uint8_t UnitRollerI2C::getFirmwareVersion(void)
 
     uint8_t RegValue;
     _wire->requestFrom(_addr, 1);
-    RegValue = Wire.read();
+    RegValue = _wire->read();
     return RegValue;
 }
 
@@ -505,6 +577,6 @@ uint8_t UnitRollerI2C::getI2CAddress(void)
     _wire->endTransmission(false);
     uint8_t RegValue;
     _wire->requestFrom(_addr, 1);
-    RegValue = Wire.read();
+    RegValue = _wire->read();
     return RegValue;
 }

@@ -33,6 +33,25 @@ public:
      */
     bool begin(TwoWire *wire = &Wire, uint8_t addr = I2C_ADDR, uint32_t speed = 4000000L);
 
+    /** Configure the dedicated wheel bus and wait for the roller to respond. */
+    bool begin(TwoWire *wire, uint8_t sdaPin, uint8_t sclPin,
+               uint8_t addr = I2C_ADDR, uint32_t speed = 100000L,
+               unsigned long timeoutMs = 5000,
+               unsigned long retryIntervalMs = 250);
+
+    /** Probe the configured roller until it responds or the timeout expires. */
+    bool connect(unsigned long timeoutMs = 5000,
+                 unsigned long retryIntervalMs = 250);
+
+    /** High-level reaction-wheel operations. Values passed here are in rpm. */
+    void configure(int32_t maxCurrent = 100000);
+    void start(int32_t speedRpm, int32_t maxCurrent = 100000);
+    void stop(void);
+    void setSpeedRpm(int32_t speedRpm);
+    int32_t getSpeedRpm(void);
+    int32_t getSpeedReadbackRpm(void);
+    bool isConnected(void) const;
+
     /**
      * @brief Sets the operational mode of the UnitRollerI2C device.
      *
@@ -996,9 +1015,11 @@ public:
     uint8_t getI2CAddress(void);
 
 private:
+    static const int32_t SPEED_REGISTER_SCALE = 100;
     uint8_t _addr;
     TwoWire *_wire;
     uint32_t _speed;
+    bool _connected = false;
 
     /**
      * @brief Writes a sequence of bytes to a specific register on a device.

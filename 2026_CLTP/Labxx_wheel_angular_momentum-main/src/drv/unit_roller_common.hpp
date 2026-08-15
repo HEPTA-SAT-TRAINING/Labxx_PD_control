@@ -286,4 +286,17 @@ void acquireMutex();
 void releaseMutex();
 int32_t handleValue(uint8_t byte0, uint8_t byte1, uint8_t byte2, uint8_t byte3);
 
+class UnitRollerI2C;
+
+bool connectWheel(UnitRollerI2C &wheel, bool &isConnected,
+                  unsigned long timeoutMs, unsigned long retryIntervalMs);
+String startWheel(UnitRollerI2C &wheel, int32_t targetSpeedRpm,
+                  int32_t maxCurrent, bool &isRunning);
+String stopWheel(UnitRollerI2C &wheel, bool &isRunning);
+String setWheelSpeed(UnitRollerI2C &wheel, const String &argument,
+                     int32_t maxSpeedRpm, int32_t &targetSpeedRpm,
+                     bool &isRunning);
+String sendWheelStatus(UnitRollerI2C &wheel, bool isConnected, bool isRunning,
+                       int32_t targetSpeedRpm, float rpmToRadPerSec);
+
 #endif
