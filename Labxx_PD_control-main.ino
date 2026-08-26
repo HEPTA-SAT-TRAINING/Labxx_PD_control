@@ -3,9 +3,9 @@
 #include "src/drv/imu9axis_bno055.h"
 #include "src/drv/unit_rolleri2c.hpp"
 #include "src/eps/hepta_eps.h"
-#include "angular_estimation.h"
-#include "adcs_conrol.h"
-#include "radio_commands.h"
+#include "src/adcs_module/adcs/angular_estimation.h"
+#include "src/adcs_module/adcs/adcs_control.h"
+#include "src/adcs_module/command/radio_commands.h"
 
 /* Z-axis (yaw) reaction-wheel continuous-current PD control.
  * The PD output directly commands motor current with current and slew limits,
@@ -21,7 +21,7 @@ constexpr uint8_t WHEEL_SCL_PIN = 7;
 constexpr unsigned long CONTROL_INTERVAL_MS = 10;
 // SoftwareSerial at 38400 baud can lose commands and build a transmit backlog
 // during long, frequent messages. Keep all monitoring data in one compact line.
-constexpr unsigned long TELEMETRY_INTERVAL_MS = 250;
+constexpr unsigned long TELEMETRY_INTERVAL_MS = 200;
 
 HeptaCom com;
 HeptaEps eps;
@@ -76,17 +76,7 @@ void execute_command(String command) {
 }
 
 void update_attitude_control(unsigned long now_ms) {
-  angular_estimation.update(sensor, now_ms);
-
-  const float estimated_yaw_deg = angular_estimation.yaw_deg();
-  const float yaw_rate_deg_per_sec = angular_estimation.yaw_rate_deg_per_sec();
-  const float angle_error_deg =angular_estimation.error_deg(adcs_control.target_angle_deg());
-
-  const float body_pd_command = adcs_control.calculate_body_pd_command(angle_error_deg, yaw_rate_deg_per_sec);
-
-  adcs_control.update_control_state(angle_error_deg, yaw_rate_deg_per_sec, body_pd_command, now_ms);
-  adcs_control.command_reaction_wheel(wheel, now_ms);
-
+  adcs_control.update(angular_estimation, sensor, wheel, now_ms);
   last_control_update_ms = now_ms;
 }
 
@@ -112,6 +102,8 @@ void loop() {
   }
 
   // 姿勢情報、制御誤差、ホイール情報、電圧を同じ周期で表示する。
-  process_telemetry(now_ms, TELEMETRY_INTERVAL_MS);
+  // I2C work in the controller can consume part of a loop iteration. Use a
+  // fresh timestamp so telemetry is emitted as soon as that work completes.
+  process_telemetry(millis(), TELEMETRY_INTERVAL_MS);
   delay(1);
 }
