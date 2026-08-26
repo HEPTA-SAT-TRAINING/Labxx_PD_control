@@ -1,0 +1,3 @@
+[submodule "src/adcs_module"]
+	path = src/adcs_module
+	url = https://github.com/HEPTA-SAT-TRAINING/HEPTA-ADCS-module.git
