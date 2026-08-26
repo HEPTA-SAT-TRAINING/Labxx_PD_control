@@ -11,6 +11,7 @@
 class AdcsControl {
  public:
   static constexpr int32_t MAX_WHEEL_SPEED_RPM = 600;
+  static constexpr int32_t WHEEL_CURRENT_TAPER_START_RPM = 500;
   static constexpr float CONTROL_SWITCH_THRESHOLD = 2.0f;
   static constexpr int32_t UNLOAD_START_SPEED_RPM = 590;
   static constexpr int32_t UNLOAD_FINISHED_SPEED_RPM = 10;
@@ -18,29 +19,29 @@ class AdcsControl {
   static constexpr float MOVING_AWAY_YAW_RATE_DEG_PER_SEC = 1.0f;
   static constexpr unsigned long SATURATION_CONFIRM_MS = 1000;
   static constexpr unsigned long SETTLING_CONFIRM_MS = 1000;
-  static constexpr float SETTLED_ANGLE_ERROR_DEG = 1.0f;
-  static constexpr float SETTLED_YAW_RATE_DEG_PER_SEC = 0.5f;
-  static constexpr float TARGET_HOLD_ENTER_ERROR_DEG = 5.0f;
-  static constexpr float TARGET_HOLD_ENTER_YAW_RATE_DEG_PER_SEC = 2.0f;
-  static constexpr unsigned long TARGET_HOLD_CONFIRM_MS = 200;
-  static constexpr float TARGET_HOLD_EXIT_ERROR_DEG = 7.0f;
-  static constexpr unsigned long TARGET_HOLD_EXIT_CONFIRM_MS = 500;
+  static constexpr float SETTLED_ANGLE_ERROR_DEG = 3.0f;
+  static constexpr float SETTLED_YAW_RATE_DEG_PER_SEC = 1.0f;
   static constexpr unsigned long CURRENT_COMMAND_INTERVAL_MS = 200;
   static constexpr float MAX_COMMAND_CURRENT_MA = 120.0f;
-  static constexpr float BREAKAWAY_CURRENT_MA = 80.0f;
+  static constexpr float BREAKAWAY_CURRENT_MA = 30.0f;
   static constexpr float BREAKAWAY_MIN_ERROR_DEG = 5.0f;
   static constexpr float MAX_CURRENT_SLEW_MA_PER_UPDATE = 120.0f;
   static constexpr float UNLOAD_CURRENT_MA = 50.0f;
   static constexpr float CONTROL_DEADBAND_CURRENT_MA = 1.0f;
-  static constexpr float STUCK_ERROR_THRESHOLD_DEG = 5.0f;
-  static constexpr float STUCK_YAW_RATE_THRESHOLD_DEG_PER_SEC = 1.0f;
+  static constexpr float STUCK_ERROR_THRESHOLD_DEG = 10.0f;
+  static constexpr float STUCK_YAW_RATE_THRESHOLD_DEG_PER_SEC = 0.5f;
   static constexpr unsigned long STUCK_CONFIRM_MS = 1000;
-  static constexpr float STUCK_CURRENT_STEP_MA = 2.0f;
-  static constexpr float MAX_STUCK_COMPENSATION_MA = 30.0f;
-  static constexpr int32_t STUCK_COMP_MAX_WHEEL_SPEED_RPM = 500;
+  static constexpr int32_t STUCK_COMP_MAX_WHEEL_SPEED_RPM = 300;
+  static constexpr unsigned long BREAKAWAY_PULSE_MS = 100;
+  static constexpr unsigned long BREAKAWAY_RESPONSE_CHECK_MS = 300;
+  static constexpr uint8_t MAX_BREAKAWAY_ATTEMPTS = 2;
   static constexpr unsigned long WHEEL_READBACK_INTERVAL_MS = 250;
+  static constexpr unsigned long CURRENT_READBACK_INTERVAL_MS = 1000;
   static constexpr int32_t MAX_VALID_WHEEL_READBACK_RPM = 700;
   static constexpr int32_t MAX_VALID_READBACK_JUMP_RPM = 300;
+  static constexpr uint8_t MAX_CONSECUTIVE_WHEEL_READ_ERRORS = 3;
+  static constexpr float MAX_CURRENT_TRACKING_ERROR_MA = 30.0f;
+  static constexpr uint8_t MAX_CONSECUTIVE_CURRENT_TRACKING_ERRORS = 3;
   static constexpr int32_t MAX_READBACK_COMMAND_ERROR_RPM = 200;
   static constexpr int32_t WHEEL_STOPPED_THRESHOLD_RPM = 10;
   static constexpr unsigned long WHEEL_RECOVERY_DELAY_MS = 2000;
@@ -72,7 +73,9 @@ class AdcsControl {
   float current_command_ma() const;
   float friction_compensation_ma() const;
   float current_readback_ma() const;
+  bool current_readback_is_valid() const;
   int32_t wheel_speed_rpm() const;
+  bool wheel_readback_is_valid() const;
   float wheel_speed_command_rpm() const;
   int32_t last_sent_wheel_speed_rpm() const;
   const char *control_state_name() const;
@@ -83,13 +86,12 @@ class AdcsControl {
     CONTROL_STATE_SATURATED,//ホイールが回転数上限に達しており，さらに同じ方向へ加速しようとしている状態
     CONTROL_STATE_UNLOADING,//逆向きトルクでホイールを0 rpmへ近づける
     CONTROL_STATE_SETTLING,//アンローディング後にホイール速度が安定するまで待つ
-    CONTROL_STATE_TARGET_HOLD//目標付近で連続電流PDにより姿勢を保持する
+    CONTROL_STATE_BREAKAWAY_PULSE,
+    CONTROL_STATE_RESPONSE_CHECK,
+    CONTROL_STATE_STICTION_STOP
   };
 
   static float normalize_angle_deg(float angle_deg);
-  bool handle_target_hold(float angle_error_deg,
-                          float yaw_rate_deg_per_sec,
-                          unsigned long now_ms);
   bool handle_unloading(unsigned long now_ms);
   bool handle_settling(float yaw_rate_deg_per_sec,
                        unsigned long now_ms);
@@ -97,6 +99,9 @@ class AdcsControl {
                               float yaw_rate_deg_per_sec,
                               float body_pd_command,
                               unsigned long now_ms);
+  bool handle_stiction_recovery(float angle_error_deg,
+                                float yaw_rate_deg_per_sec,
+                                unsigned long now_ms);
   void update_current_command(float angle_error_deg,
                               float yaw_rate_deg_per_sec,
                               float body_pd_command,
@@ -109,17 +114,23 @@ class AdcsControl {
   int32_t current_command_ = 0;
   float friction_compensation_ma_ = 0.0f;
   unsigned long stuck_candidate_started_ms_ = 0;
+  unsigned long breakaway_state_started_ms_ = 0;
+  uint8_t breakaway_attempt_count_ = 0;
   int32_t current_readback_ = 0;
+  int32_t last_sent_current_command_ = 0;
+  bool current_readback_is_valid_ = false;
+  uint8_t consecutive_current_tracking_errors_ = 0;
   int32_t wheel_speed_rpm_ = 0;
   float wheel_speed_command_rpm_ = 0.0f;
   unsigned long previous_current_command_ms_ = 0;
   unsigned long previous_wheel_command_write_ms_ = 0;
   int32_t last_sent_wheel_speed_rpm_ = 0;
   unsigned long previous_wheel_readback_ms_ = 0;
+  unsigned long previous_current_readback_ms_ = 0;
+  uint8_t consecutive_wheel_read_errors_ = 0;
+  bool wheel_readback_is_valid_ = false;
   unsigned long saturation_started_ms_ = 0;
   unsigned long settling_started_ms_ = 0;
-  unsigned long target_hold_candidate_started_ms_ = 0;
-  unsigned long target_hold_exit_started_ms_ = 0;
   unsigned long wheel_tracking_error_started_ms_ = 0;
   bool wheel_is_recovering_ = false;
   bool wheel_command_is_ready_ = false;

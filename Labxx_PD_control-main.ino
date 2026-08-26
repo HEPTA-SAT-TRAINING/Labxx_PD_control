@@ -36,6 +36,25 @@ bool wheelIsRunning = false;
 bool is_telemetry_enabled = false;
 unsigned long last_control_update_ms = 0;
 unsigned long last_telemetry_ms = 0;
+// Gyro bias calibration is intentionally RAM-only. Power cycling clears it.
+float gyro_bias_z_deg_per_sec = 0.0f;
+float measured_gyro_bias_z_deg_per_sec = 0.0f;
+bool measured_gyro_bias_is_valid = false;
+bool gyro_bias_correction_enabled = false;
+bool magnetic_calibration_active = false;
+bool magnetic_calibration_enabled = false;
+unsigned long magnetic_calibration_started_ms = 0;
+unsigned long magnetic_calibration_previous_sample_ms = 0;
+unsigned long magnetic_calibration_previous_report_ms = 0;
+size_t magnetic_calibration_sample_count = 0;
+float magnetic_calibration_min_x_ut = 0.0f;
+float magnetic_calibration_max_x_ut = 0.0f;
+float magnetic_calibration_min_y_ut = 0.0f;
+float magnetic_calibration_max_y_ut = 0.0f;
+float magnetic_offset_x_ut = 0.0f;
+float magnetic_offset_y_ut = 0.0f;
+float magnetic_scale_x = 1.0f;
+float magnetic_scale_y = 1.0f;
 
 void execute_command(String command) {
   normalize_command(command);
@@ -45,6 +64,10 @@ void execute_command(String command) {
   else if (command.startsWith("t")) execute_set_target_angle_command(command.substring(1));
   else if (command.startsWith("kp")) execute_set_kp_command(command.substring(2));
   else if (command.startsWith("kd")) execute_set_kd_command(command.substring(2));
+  else if (command == "biascal") execute_gyro_bias_calibration_command();
+  else if (command == "biassave") execute_gyro_bias_save_command();
+  else if (command == "magcal") execute_magnetic_calibration_command();
+  else if (command == "magcal?") execute_magnetic_calibration_status_command();
   else if (command == "h" || command == "?") execute_status_command();
   else if (!ensure_wheel_is_connected()) return;
   else if (command == "a") execute_start_command();
@@ -75,12 +98,13 @@ void setup() {
   delay(500);
   wheelIsConnected = wheel.begin(WHEEL_SDA_PIN, WHEEL_SCL_PIN);
   send_message(wheelIsConnected ? "I2C WHEEL TRUE" : "I2C WHEEL FALSE");
-  send_message("READY: t<yaw_deg>, kp<mA/deg>, kd<mA/(deg/s)>, a=START, s=STOP, h=STATUS, v/p=TELEMETRY");
+  send_message("READY: t<yaw_deg>, kp<mA/deg>, kd<mA/(deg/s)>, biascal, biassave, magcal, magcal?, a=START, s=STOP, h=STATUS, v/p=TELEMETRY");
 }
 
 void loop() {
   receive_radio_commands(execute_command);
   const unsigned long now_ms = millis();
+  process_magnetic_calibration(now_ms);
 
   // 姿勢制御はテレメトリ表示とは独立した周期で実行する。
   if (adcs_control.is_enabled() && now_ms - last_control_update_ms >= CONTROL_INTERVAL_MS) {

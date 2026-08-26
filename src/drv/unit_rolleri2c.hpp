@@ -53,6 +53,7 @@ public:
     void setSpeedRpm(int32_t speedRpm);
     int32_t getSpeedRpm(void);
     int32_t getSpeedReadbackRpm(void);
+    bool getSpeedReadbackRpm(int32_t *speedRpm);
     bool isConnected(void) const;
 
     /**
@@ -712,6 +713,7 @@ public:
      *       has been properly initialized before calling this function.
      */
     int32_t getCurrentReadback(void);
+    bool getCurrentReadback(int32_t *current);
 
     /**
      * @brief Retrieves the encoder value from the motor using the UnitRollerI2C device.
@@ -1056,7 +1058,7 @@ private:
      *       'false' to endTransmission() to allow for reading without releasing the bus.
      *       Ensure that the device at the given address is ready to provide the requested data.
      */
-    void readBytes(uint8_t addr, uint8_t reg, uint8_t *buffer, uint8_t length);
+    bool readBytes(uint8_t addr, uint8_t reg, uint8_t *buffer, uint8_t length);
 
     /**
      * @brief Converts a float value to an array of bytes.

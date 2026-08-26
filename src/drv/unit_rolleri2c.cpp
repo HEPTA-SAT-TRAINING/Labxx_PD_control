@@ -41,7 +41,7 @@ void UnitRollerI2C::writeBytes(uint8_t addr, uint8_t reg, uint8_t *buffer, uint8
 #endif
 }
 
-void UnitRollerI2C::readBytes(uint8_t addr, uint8_t reg, uint8_t *buffer, uint8_t length)
+bool UnitRollerI2C::readBytes(uint8_t addr, uint8_t reg, uint8_t *buffer, uint8_t length)
 {
     for (uint8_t attempt = 0; attempt < 3; ++attempt) {
         _wire->beginTransmission(addr);
@@ -57,7 +57,7 @@ void UnitRollerI2C::readBytes(uint8_t addr, uint8_t reg, uint8_t *buffer, uint8_
                 buffer[i] = static_cast<uint8_t>(_wire->read());
             }
             _connected = true;
-            return;
+            return true;
         }
 
         while (_wire->available()) _wire->read();
@@ -81,6 +81,7 @@ void UnitRollerI2C::readBytes(uint8_t addr, uint8_t reg, uint8_t *buffer, uint8_
 
     Serial.println();  // New line after printing all received data
 #endif
+    return false;
 }
 
 void UnitRollerI2C::floatToBytes(float s, uint8_t *d)
@@ -189,7 +190,21 @@ int32_t UnitRollerI2C::getSpeedRpm(void)
 
 int32_t UnitRollerI2C::getSpeedReadbackRpm(void)
 {
-    return getSpeedReadback() / SPEED_REGISTER_SCALE;
+    int32_t speedRpm = 0;
+    getSpeedReadbackRpm(&speedRpm);
+    return speedRpm;
+}
+
+bool UnitRollerI2C::getSpeedReadbackRpm(int32_t *speedRpm)
+{
+    if (speedRpm == nullptr) return false;
+    int32_t rawSpeed = 0;
+    if (!readBytes(_addr, I2C_SPEED_READBACK_REG,
+                   reinterpret_cast<uint8_t *>(&rawSpeed), 4)) {
+        return false;
+    }
+    *speedRpm = rawSpeed / SPEED_REGISTER_SCALE;
+    return true;
 }
 
 bool UnitRollerI2C::isConnected(void) const
@@ -457,10 +472,21 @@ int32_t UnitRollerI2C::getCurrent(void)
 
 int32_t UnitRollerI2C::getCurrentReadback(void)
 {
+    int32_t current = 0;
+    getCurrentReadback(&current);
+    return current;
+}
+
+bool UnitRollerI2C::getCurrentReadback(int32_t *current)
+{
+    if (current == nullptr) return false;
     int32_t data = 0;
-    uint8_t reg  = I2C_CURRENT_READBACK_REG;
-    readBytes(_addr, reg, (uint8_t *)&data, 4);
-    return data;
+    if (!readBytes(_addr, I2C_CURRENT_READBACK_REG,
+                   reinterpret_cast<uint8_t *>(&data), 4)) {
+        return false;
+    }
+    *current = data;
+    return true;
 }
 
 int32_t UnitRollerI2C::getDialCounter(void)

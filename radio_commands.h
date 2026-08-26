@@ -19,6 +19,11 @@ void execute_status_command();
 void execute_set_target_angle_command(const String &angle_text);
 void execute_set_kp_command(const String &kp_text);
 void execute_set_kd_command(const String &kd_text);
+void execute_gyro_bias_calibration_command();
+void execute_gyro_bias_save_command();
+void execute_magnetic_calibration_command();
+void execute_magnetic_calibration_status_command();
+void process_magnetic_calibration(unsigned long now_ms);
 void send_command_error();
 
 void receive_radio_commands(CommandHandler command_handler);
