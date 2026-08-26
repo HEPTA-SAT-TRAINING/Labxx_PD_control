@@ -111,6 +111,10 @@ bool UnitRollerI2C::begin(TwoWire *wire, uint8_t addr, uint32_t speed)
     _speed = speed;
     _wire->begin();
     _wire->setClock(_speed);
+    // A stalled/disconnected Roller must not freeze attitude integration and
+    // telemetry for seconds. The RP2040 Wire default is much too long for a
+    // 10 ms control loop; readBytes() already retries transient failures.
+    _wire->setTimeout(20, true);
     delay(10);
     _wire->beginTransmission(_addr);
     uint8_t error = _wire->endTransmission();
@@ -135,6 +139,7 @@ bool UnitRollerI2C::begin(TwoWire *wire, uint8_t sdaPin, uint8_t sclPin,
     _wire->setSCL(sclPin);
     _wire->begin();
     _wire->setClock(_speed);
+    _wire->setTimeout(20, true);
     delay(10);
     return connect(timeoutMs, retryIntervalMs);
 }
