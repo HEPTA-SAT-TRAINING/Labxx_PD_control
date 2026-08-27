@@ -791,6 +791,7 @@ public:
      *       has been properly initialized before calling this function.
      */
     uint8_t getSysStatus(void);
+    bool getSysStatus(uint8_t *status);
 
     /**
      * @brief Retrieves the error code from the UnitRollerI2C device.
@@ -811,6 +812,7 @@ public:
      *       has been properly initialized before calling this function.
      */
     uint8_t getErrorCode(void);
+    bool getErrorCode(uint8_t *errorCode);
 
     /**
      * @brief Get the current state of the motor position range protection
@@ -847,6 +849,7 @@ public:
      *       from is defined by the constant UnitRollerI2C_STALL_PROTECTION_REG.
      */
     uint8_t getStallProtection(void);
+    bool getStallProtection(uint8_t *enabled);
 
     /**
      * @brief Retrieves the current key switch mode from the UnitRollerI2C device.
@@ -885,6 +888,7 @@ public:
      *       has been properly initialized before calling this function.
      */
     uint8_t getOutputStatus(void);
+    bool getOutputStatus(uint8_t *enabled);
 
     /**
      * @brief Retrieves the current operating mode of the motor from the UnitRollerI2C device.

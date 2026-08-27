@@ -59,8 +59,10 @@ float magnetic_scale_y = 1.0f;
 void execute_command(String command) {
   normalize_command(command);
   if (command.length() == 0) return;
-  if (command == "v") enable_angular_velocity_output();
+  if (command == "t" || command == "v") enable_angular_velocity_output();
   else if (command == "p") disable_angular_velocity_output();
+  else if (command == "est_j" || command == "est_m" || command == "est_f")
+    execute_set_estimation_mode_command(command.substring(4));
   else if (command.startsWith("t")) execute_set_target_angle_command(command.substring(1));
   else if (command.startsWith("kp")) execute_set_kp_command(command.substring(2));
   else if (command.startsWith("kd")) execute_set_kd_command(command.substring(2));
@@ -88,7 +90,7 @@ void setup() {
   delay(500);
   wheelIsConnected = wheel.begin(WHEEL_SDA_PIN, WHEEL_SCL_PIN);
   send_message(wheelIsConnected ? "I2C WHEEL TRUE" : "I2C WHEEL FALSE");
-  send_message("READY: t<yaw_deg>, kp<mA/deg>, kd<mA/(deg/s)>, biascal, biassave, magcal, magcal?, a=START, s=STOP, h=STATUS, v/p=TELEMETRY");
+  send_message("READY: est_j=GYRO, est_m=MAG, est_f=FUSION, t=TELEMETRY, t<yaw_deg>=TARGET, kp, kd, biascal, biassave, magcal, a=START, s=STOP, h=STATUS, p=TELEMETRY_OFF");
 }
 
 void loop() {
@@ -97,8 +99,15 @@ void loop() {
   process_magnetic_calibration(now_ms);
 
   // 姿勢制御はテレメトリ表示とは独立した周期で実行する。
-  if (adcs_control.is_enabled() && now_ms - last_control_update_ms >= CONTROL_INTERVAL_MS) {
-    update_attitude_control(now_ms);
+  if (now_ms - last_control_update_ms >= CONTROL_INTERVAL_MS) {
+    if (adcs_control.is_enabled()) {
+      update_attitude_control(now_ms);
+    } else if (is_telemetry_enabled) {
+      // Keep attitude data live for the Serial Plotter even while control is
+      // stopped. The controller normally performs this sensor update.
+      angular_estimation.update(sensor, now_ms);
+      last_control_update_ms = now_ms;
+    }
   }
 
   // 姿勢情報、制御誤差、ホイール情報、電圧を同じ周期で表示する。

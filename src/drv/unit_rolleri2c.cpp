@@ -524,19 +524,28 @@ int32_t UnitRollerI2C::getTemp(void)
 uint8_t UnitRollerI2C::getSysStatus(void)
 {
     uint8_t data = 0;
-    uint8_t reg  = I2C_SYS_STATUS_REG;
-    readBytes(_addr, reg, (uint8_t *)&data, 1);
-
+    getSysStatus(&data);
     return data;
+}
+
+bool UnitRollerI2C::getSysStatus(uint8_t *status)
+{
+    if (status == nullptr) return false;
+    return readBytes(_addr, I2C_SYS_STATUS_REG, status, 1);
 }
 
 uint8_t UnitRollerI2C::getErrorCode(void)
 {
     uint8_t data = 0;
-    uint8_t reg  = I2C_ERROR_CODE_REG;
-    readBytes(_addr, reg, (uint8_t *)&data, 1);
-
+    getErrorCode(&data);
     return data;
+}
+
+
+bool UnitRollerI2C::getErrorCode(uint8_t *errorCode)
+{
+    if (errorCode == nullptr) return false;
+    return readBytes(_addr, I2C_ERROR_CODE_REG, errorCode, 1);
 }
 
 uint8_t UnitRollerI2C::getPosRangeProtect(void)
@@ -550,10 +559,15 @@ uint8_t UnitRollerI2C::getPosRangeProtect(void)
 uint8_t UnitRollerI2C::getStallProtection(void)
 {
     uint8_t data = 0;
-    uint8_t reg  = I2C_STALL_PROTECTION_REG;
-    readBytes(_addr, reg, (uint8_t *)&data, 1);
-
+    getStallProtection(&data);
     return data;
+}
+
+
+bool UnitRollerI2C::getStallProtection(uint8_t *enabled)
+{
+    if (enabled == nullptr) return false;
+    return readBytes(_addr, I2C_STALL_PROTECTION_REG, enabled, 1);
 }
 
 uint8_t UnitRollerI2C::getKeySwitchMode(void)
@@ -566,9 +580,15 @@ uint8_t UnitRollerI2C::getKeySwitchMode(void)
 uint8_t UnitRollerI2C::getOutputStatus(void)
 {
     uint8_t data = 0;
-    uint8_t reg  = I2C_OUTPUT_REG;
-    readBytes(_addr, reg, (uint8_t *)&data, 1);
+    getOutputStatus(&data);
     return data;
+}
+
+
+bool UnitRollerI2C::getOutputStatus(uint8_t *enabled)
+{
+    if (enabled == nullptr) return false;
+    return readBytes(_addr, I2C_OUTPUT_REG, enabled, 1);
 }
 
 uint8_t UnitRollerI2C::getMotorMode(void)
