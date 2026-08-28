@@ -63,7 +63,7 @@ void execute_command(String command) {
   else if (command == "p") disable_angular_velocity_output();
   else if (command == "est_j" || command == "est_m" || command == "est_f")
     execute_set_estimation_mode_command(command.substring(4));
-  else if (command.startsWith("t")) execute_set_target_angle_command(command.substring(1));
+  else if (command.startsWith("aim")) execute_set_target_angle_command(command.substring(3));
   else if (command.startsWith("kp")) execute_set_kp_command(command.substring(2));
   else if (command.startsWith("kd")) execute_set_kd_command(command.substring(2));
   else if (command == "biascal") execute_gyro_bias_calibration_command();
@@ -90,7 +90,7 @@ void setup() {
   delay(500);
   wheelIsConnected = wheel.begin(WHEEL_SDA_PIN, WHEEL_SCL_PIN);
   send_message(wheelIsConnected ? "I2C WHEEL TRUE" : "I2C WHEEL FALSE");
-  send_message("READY: est_j=GYRO, est_m=MAG, est_f=FUSION, t=TELEMETRY, t<yaw_deg>=TARGET, kp, kd, biascal, biassave, magcal, a=START, s=STOP, h=STATUS, p=TELEMETRY_OFF");
+  send_message("READY: est_j=GYRO, est_m=MAG, est_f=FUSION, t=TELEMETRY, aim<yaw_deg>=TARGET, kp, kd, biascal, biassave, magcal, a=START, s=STOP, h=STATUS, p=TELEMETRY_OFF");
 }
 
 void loop() {
